@@ -1,3 +1,3 @@
-module github.com/MichaelWrana/noencrypt-synthmorph
+module github.com/MichaelWrana/noencryptsynthmorph
 
 go 1.24.0
