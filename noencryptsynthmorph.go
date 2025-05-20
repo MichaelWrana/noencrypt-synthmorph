@@ -11,36 +11,6 @@ import (
 )
 
 /*
-STRUCT FOR MANAGING BUFFER OF RECEIVED PACKETS
-*/
-
-type RTPStack struct {
-	packets []*rtp.Packet
-}
-
-// Push adds an RTP packet to the top of the stack
-func (s *RTPStack) Push(packet *rtp.Packet) {
-	s.packets = append(s.packets, packet)
-}
-
-// Pop removes and returns the top RTP packet from the stack
-func (s *RTPStack) Pop() *rtp.Packet {
-	packet := s.packets[len(s.packets)-1]
-	s.packets = s.packets[:len(s.packets)-1]
-	return packet
-}
-
-// Size returns the number of packets in the stack
-func (s *RTPStack) Size() int {
-	return len(s.packets)
-}
-
-// IsEmpty returns whether the stack is empty
-func (s *RTPStack) IsEmpty() bool {
-	return len(s.packets) == 0
-}
-
-/*
 STRUCT FOR MANAGING KEY EXCHANGE STATE INFORMATION
 */
 
@@ -49,8 +19,6 @@ type SynthmorphState struct {
 	Lock sync.Mutex
 	//RTP connection state information
 	SSRC uint32
-	//Data received goes into this "buffer" : needs to change into a buffer
-	RecvBuffer RTPStack
 }
 
 func NewSynthmorphState() SynthmorphState {
@@ -87,7 +55,7 @@ MAIN SENDER/RECEIVER TOOLS
 
 func (s *SynthmorphState) SendData(videoTrack *webrtc.TrackLocalStaticRTP, header byte, payload []byte) {
 	seq := uint16(1)
-	timestamp := uint32(12345678)
+	timestamp := uint32(0)
 
 	message := append([]byte{header}, payload...)
 
@@ -97,12 +65,10 @@ func (s *SynthmorphState) SendData(videoTrack *webrtc.TrackLocalStaticRTP, heade
 			PayloadType:    96, // Dynamic payload type (e.g., for VP8)
 			SequenceNumber: seq,
 			Timestamp:      timestamp,
-			SSRC:           0x11223344, // Example SSRC; typically randomized
 		},
 		// Set payload to "Hello World!"
 		Payload: message,
 	}
-
 	if err := videoTrack.WriteRTP(pkt); err != nil {
 		panic(err)
 	}
@@ -112,10 +78,8 @@ func (s *SynthmorphState) SendData(videoTrack *webrtc.TrackLocalStaticRTP, heade
 
 // interval is in seconds
 func (s *SynthmorphState) SynthmorphPeriodicSender(videoTrack *webrtc.TrackLocalStaticRTP, interval int32) {
-	time.Sleep(5 * time.Second)
-
-	seq := uint16(2)
-	timestamp := uint32(12345678)
+	seq := uint16(0)
+	timestamp := uint32(0)
 
 	message := []byte("Hello World!")
 
