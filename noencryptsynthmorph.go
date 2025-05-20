@@ -1,6 +1,7 @@
 package noencryptsynthmorph
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"log"
@@ -99,7 +100,7 @@ func (s *SynthmorphState) UpdateQueue(refresh time.Duration, threshold int, coun
 		// Fill SizeQueue if needed
 		if s.SizeQueue.Size() < threshold {
 			for i := 0; i < count; i++ {
-				sizeVal := rand.Intn(1000) + 1 // Positive int [1,1000]
+				sizeVal := rand.Intn(50) + 1 // Positive int [1,50]
 				_ = s.SizeQueue.Enqueue(sizeVal)
 			}
 		}
@@ -139,6 +140,67 @@ func printRTPPacket(packet *rtp.Packet) {
 /*
 MAIN SENDER/RECEIVER TOOLS
 */
+func (s *SynthmorphState) QueueDeterminedSender(videoTrack *webrtc.TrackLocalStaticRTP) {
+	seq := uint16(0)
+	timestamp := uint32(0)
+	prevTiming := 0
+	const clockRate = 90000 // 90 kHz RTP clock for video
+	lastSendTime := time.Now()
+
+	for {
+		// Dequeue timing value
+		currTiming, _ := s.TimingQueue.Dequeue()
+
+		// Compute intended inter-packet delay
+		var delayMs int
+		if prevTiming == 0 {
+			delayMs = 0 // no delay before first packet
+		} else {
+			delayMs = currTiming - prevTiming
+		}
+		prevTiming = currTiming
+
+		// Compute actual elapsed time since last packet
+		now := time.Now()
+		elapsed := now.Sub(lastSendTime)
+		elapsedMs := int(elapsed.Milliseconds())
+
+		sleepMs := delayMs - elapsedMs
+		if sleepMs > 0 {
+			time.Sleep(time.Duration(sleepMs) * time.Millisecond)
+		}
+		lastSendTime = time.Now()
+
+		// Update RTP timestamp based on intended delay
+		timestamp += uint32(delayMs * (clockRate / 1000))
+
+		// Dequeue size
+		size, _ := s.SizeQueue.Dequeue()
+
+		// Assemble payload efficiently
+		message := bytes.Repeat([]byte("A"), size)
+
+		fmt.Printf("Sending packet: size=%d bytes, delay=%dms, ts=%d\n", size, delayMs, timestamp)
+
+		pkt := &rtp.Packet{
+			Header: rtp.Header{
+				Version:        2,
+				PayloadType:    96,
+				SequenceNumber: seq,
+				Timestamp:      timestamp,
+				SSRC:           0x11223344,
+			},
+			Payload: message,
+		}
+
+		if err := videoTrack.WriteRTP(pkt); err != nil {
+			panic(err)
+		}
+
+		fmt.Printf("Sent packet: seq=%v\n", seq)
+		seq++
+	}
+}
 
 // interval is in seconds
 func (s *SynthmorphState) SynthmorphPeriodicSender(videoTrack *webrtc.TrackLocalStaticRTP, interval int32) {
