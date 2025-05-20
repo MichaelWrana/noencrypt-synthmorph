@@ -1,8 +1,10 @@
 package noencryptsynthmorph
 
 import (
+	"errors"
 	"fmt"
 	"log"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -11,21 +13,106 @@ import (
 )
 
 /*
+QUEUE FOR MANAGING THE SIZE AND TIME OF EACH PACKET AS DETERMINED BY AI
+*/
+
+// IntQueue is a thread-safe queue for positive integers
+type IntQueue struct {
+	items []int
+	lock  sync.Mutex
+}
+
+// Enqueue adds a positive integer to the queue
+func (q *IntQueue) Enqueue(val int) error {
+	if val <= 0 {
+		return errors.New("only positive integers allowed")
+	}
+	q.lock.Lock()
+	defer q.lock.Unlock()
+	q.items = append(q.items, val)
+	return nil
+}
+
+// Dequeue removes and returns the front element of the queue
+func (q *IntQueue) Dequeue() (int, error) {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+	if len(q.items) == 0 {
+		return 0, errors.New("queue is empty")
+	}
+	val := q.items[0]
+	q.items = q.items[1:]
+	return val, nil
+}
+
+// Peek returns the front element without removing it
+func (q *IntQueue) Peek() (int, error) {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+	if len(q.items) == 0 {
+		return 0, errors.New("queue is empty")
+	}
+	return q.items[0], nil
+}
+
+// Size returns the number of elements in the queue
+func (q *IntQueue) Size() int {
+	q.lock.Lock()
+	defer q.lock.Unlock()
+	return len(q.items)
+}
+
+// IsEmpty returns true if the queue has no elements
+func (q *IntQueue) IsEmpty() bool {
+	return q.Size() == 0
+}
+
+/*
 STRUCT FOR MANAGING KEY EXCHANGE STATE INFORMATION
 */
 
+// SynthmorphState holds RTP and queue state
 type SynthmorphState struct {
-	//cryptographic state information
-	Lock sync.Mutex
-	//RTP connection state information
-	SSRC uint32
+	SSRC        uint32
+	SizeQueue   IntQueue
+	TimingQueue IntQueue
 }
 
+// Constructor
 func NewSynthmorphState() SynthmorphState {
-	state := SynthmorphState{}
-	state.SSRC = 0x12345678
-	state.Lock = sync.Mutex{}
-	return state
+	return SynthmorphState{
+		SSRC:        0x12345678,
+		SizeQueue:   IntQueue{items: make([]int, 0)},
+		TimingQueue: IntQueue{items: make([]int, 0)},
+	}
+}
+
+/*
+UPDATE THE QUEUE OF TIMINGS AND SIZES
+*/
+func (s *SynthmorphState) UpdateQueue(refresh time.Duration, threshold int, count int) {
+	lastTiming := 0
+
+	for {
+		time.Sleep(refresh)
+
+		// Fill SizeQueue if needed
+		if s.SizeQueue.Size() < threshold {
+			for i := 0; i < count; i++ {
+				sizeVal := rand.Intn(1000) + 1 // Positive int [1,1000]
+				_ = s.SizeQueue.Enqueue(sizeVal)
+			}
+		}
+
+		// Fill TimingQueue if needed
+		if s.TimingQueue.Size() < threshold {
+			for i := 0; i < count; i++ {
+				increment := rand.Intn(5) + 1 // [1,5]
+				lastTiming += increment
+				_ = s.TimingQueue.Enqueue(lastTiming)
+			}
+		}
+	}
 }
 
 /*
@@ -52,29 +139,6 @@ func printRTPPacket(packet *rtp.Packet) {
 /*
 MAIN SENDER/RECEIVER TOOLS
 */
-
-func (s *SynthmorphState) SendData(videoTrack *webrtc.TrackLocalStaticRTP, header byte, payload []byte) {
-	seq := uint16(1)
-	timestamp := uint32(0)
-
-	message := append([]byte{header}, payload...)
-
-	pkt := &rtp.Packet{
-		Header: rtp.Header{
-			Version:        2,
-			PayloadType:    96, // Dynamic payload type (e.g., for VP8)
-			SequenceNumber: seq,
-			Timestamp:      timestamp,
-		},
-		// Set payload to "Hello World!"
-		Payload: message,
-	}
-	if err := videoTrack.WriteRTP(pkt); err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("##### Sent Pkt, seqnum=%v##### \n", seq)
-}
 
 // interval is in seconds
 func (s *SynthmorphState) SynthmorphPeriodicSender(videoTrack *webrtc.TrackLocalStaticRTP, interval int32) {
