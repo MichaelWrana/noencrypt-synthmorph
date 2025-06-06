@@ -185,7 +185,7 @@ func (s *SynthmorphState) QueueDeterminedSender(videoTrack *webrtc.TrackLocalSta
 
 		if timeErr != nil || sizeErr != nil {
 			fmt.Println("Received stop signal — exiting sender loop")
-			panic(timeErr)
+			//panic(timeErr)
 			return
 		}
 
