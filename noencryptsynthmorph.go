@@ -2,10 +2,14 @@ package noencryptsynthmorph
 
 import (
 	"bytes"
+	"encoding/csv"
 	"errors"
 	"fmt"
+	"io"
 	"log"
-	"math/rand"
+	"math"
+	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -77,6 +81,8 @@ type SynthmorphState struct {
 	SSRC        uint32
 	SizeQueue   IntQueue
 	TimingQueue IntQueue
+	csvFile     *os.File
+	csvReader   *csv.Reader
 }
 
 // Constructor
@@ -92,26 +98,34 @@ func NewSynthmorphState() SynthmorphState {
 UPDATE THE QUEUE OF TIMINGS AND SIZES
 */
 func (s *SynthmorphState) UpdateQueue(refresh time.Duration, threshold int, count int) {
-	lastTiming := 0
-
 	for {
 		time.Sleep(refresh)
 
-		// Fill SizeQueue if needed
-		if s.SizeQueue.Size() < threshold {
-			for i := 0; i < count; i++ {
-				sizeVal := rand.Intn(50) + 1 // Positive int [1,50]
-				_ = s.SizeQueue.Enqueue(sizeVal)
+		for s.SizeQueue.Size() < threshold && count > 0 {
+			record, err := s.csvReader.Read()
+			if err == io.EOF {
+				fmt.Println("Reached end of CSV")
+				return
+			} else if err != nil {
+				fmt.Printf("CSV read error: %v\n", err)
+				continue
 			}
-		}
 
-		// Fill TimingQueue if needed
-		if s.TimingQueue.Size() < threshold {
-			for i := 0; i < count; i++ {
-				increment := rand.Intn(5) + 1 // [1,5]
-				lastTiming += increment
-				_ = s.TimingQueue.Enqueue(lastTiming)
+			// Parse and convert timestamp (s → ms)
+			timestampF, err1 := strconv.ParseFloat(record[0], 64)
+			// Parse and floor size
+			sizeF, err2 := strconv.ParseFloat(record[1], 64)
+			if err1 != nil || err2 != nil {
+				fmt.Printf("Parse error on line: %v\n", record)
+				continue
 			}
+
+			timestampMS := int(timestampF * 1000)
+			size := int(math.Floor(sizeF))
+
+			_ = s.TimingQueue.Enqueue(timestampMS)
+			_ = s.SizeQueue.Enqueue(size)
+			count--
 		}
 	}
 }
@@ -140,6 +154,21 @@ func printRTPPacket(packet *rtp.Packet) {
 /*
 MAIN SENDER/RECEIVER TOOLS
 */
+
+func (s *SynthmorphState) InitCSV(path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+
+	s.csvFile = file
+	s.csvReader = csv.NewReader(file)
+
+	// skip header
+	_, err = s.csvReader.Read()
+	return err
+}
+
 func (s *SynthmorphState) QueueDeterminedSender(videoTrack *webrtc.TrackLocalStaticRTP) {
 	seq := uint16(0)
 	timestamp := uint32(0)
@@ -199,45 +228,6 @@ func (s *SynthmorphState) QueueDeterminedSender(videoTrack *webrtc.TrackLocalSta
 
 		fmt.Printf("Sent packet: seq=%v\n", seq)
 		seq++
-	}
-}
-
-// interval is in seconds
-func (s *SynthmorphState) SynthmorphPeriodicSender(videoTrack *webrtc.TrackLocalStaticRTP, interval int32) {
-	seq := uint16(0)
-	timestamp := uint32(0)
-
-	message := []byte("Hello World!")
-
-	// Set ticker interval to 5 seconds
-	ticker := time.NewTicker(time.Duration(interval) * time.Second)
-	defer ticker.Stop()
-
-	for range ticker.C {
-
-		fmt.Printf("===== Sending Msg: %s =====\n", message)
-
-		pkt := &rtp.Packet{
-			Header: rtp.Header{
-				Version:        2,
-				PayloadType:    96, // Dynamic payload type (e.g., for VP8)
-				SequenceNumber: seq,
-				Timestamp:      timestamp,
-				SSRC:           0x11223344, // Example SSRC; typically randomized
-			},
-			// Set payload to "Hello World!"
-			Payload: message,
-		}
-
-		if err := videoTrack.WriteRTP(pkt); err != nil {
-			panic(err)
-		}
-
-		fmt.Printf("##### Sent Pkt, seqnum=%v##### \n", seq)
-
-		// Increment header fields for the next packet.
-		seq++
-		timestamp += 450000
 	}
 }
 
