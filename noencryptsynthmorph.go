@@ -141,6 +141,8 @@ func (s *SynthmorphState) UpdateQueue(refresh time.Duration, threshold int, coun
 			fmt.Printf("Reading CSV row: %v\n", record)
 			if err == io.EOF {
 				fmt.Println("Reached end of CSV")
+				_ = s.TimingQueue.Enqueue(-1)
+				_ = s.SizeQueue.Enqueue(-1)
 				return
 			} else if err != nil {
 				fmt.Printf("CSV read error: %v\n", err)
