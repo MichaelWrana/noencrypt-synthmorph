@@ -134,34 +134,39 @@ UPDATE THE QUEUE OF TIMINGS AND SIZESs
 */
 func (s *SynthmorphState) UpdateQueue(refresh time.Duration, threshold int, count int) {
 	for {
+		// check every refresh milliseconds
 		time.Sleep(refresh)
 
-		for s.SizeQueue.Size() < threshold && count > 0 {
-			record, err := s.csvReader.Read()
-			fmt.Printf("Reading CSV row: %v\n", record)
-			if err == io.EOF {
-				fmt.Println("Reached end of CSV")
-				_ = s.TimingQueue.Enqueue(-1)
-				_ = s.SizeQueue.Enqueue(-1)
-				return
-			} else if err != nil {
-				fmt.Printf("CSV read error: %v\n", err)
-				continue
+		// if the queue length is below the threshold
+		if s.SizeQueue.Size() < threshold {
+			enqueued := 0
+
+			// add count new packets to the queue
+			for enqueued < count {
+				record, err := s.csvReader.Read()
+				if err == io.EOF {
+					fmt.Println("Reached end of CSV - stopping")
+					return
+				} else if err != nil {
+					fmt.Printf("CSV read error: %v\n", err)
+					continue
+				}
+
+				timestampF, err1 := strconv.ParseFloat(record[0], 64)
+				sizeF, err2 := strconv.ParseFloat(record[1], 64)
+				if err1 != nil || err2 != nil {
+					fmt.Printf("Parse error on line: %v\n", record)
+					continue
+				}
+
+				timestampMS := int(timestampF * 1000)
+				size := int(math.Floor(sizeF))
+
+				_ = s.TimingQueue.Enqueue(timestampMS)
+				_ = s.SizeQueue.Enqueue(size)
+
+				enqueued++
 			}
-
-			timestampF, err1 := strconv.ParseFloat(record[0], 64) // Parse timestamp
-			sizeF, err2 := strconv.ParseFloat(record[1], 64)      // Parse size
-			if err1 != nil || err2 != nil {
-				fmt.Printf("Parse error on line: %v\n", record)
-				continue
-			}
-
-			timestampMS := int(timestampF * 1000) // convert timestamp to ms
-			size := int(math.Floor(sizeF))        // floor size
-
-			_ = s.TimingQueue.Enqueue(timestampMS)
-			_ = s.SizeQueue.Enqueue(size)
-			count--
 		}
 	}
 }
