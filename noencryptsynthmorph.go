@@ -95,7 +95,7 @@ func NewSynthmorphState() SynthmorphState {
 }
 
 /*
-UPDATE THE QUEUE OF TIMINGS AND SIZES
+UPDATE THE QUEUE OF TIMINGS AND SIZESs
 */
 func (s *SynthmorphState) UpdateQueue(refresh time.Duration, threshold int, count int) {
 	for {
