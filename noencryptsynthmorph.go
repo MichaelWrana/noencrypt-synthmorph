@@ -95,6 +95,41 @@ func NewSynthmorphState() SynthmorphState {
 }
 
 /*
+LOCAL HELPER FUNCTIONS
+*/
+
+func printRTPPacket(packet *rtp.Packet) {
+	// Print header details.
+	fmt.Printf("RTP Header:\n")
+	fmt.Printf("  Version: %d\n", packet.Version)
+	fmt.Printf("  Padding: %v\n", packet.Padding)
+	fmt.Printf("  Extension: %v\n", packet.Extension)
+	fmt.Printf("  Marker: %v\n", packet.Marker)
+	fmt.Printf("  PayloadType: %d\n", packet.PayloadType)
+	fmt.Printf("  SequenceNumber: %d\n", packet.SequenceNumber)
+	fmt.Printf("  Timestamp: %d\n", packet.Timestamp)
+	fmt.Printf("  SSRC: %d\n", packet.SSRC)
+
+	payloadStr := string(packet.Payload)
+	fmt.Printf("Payload (string): %s\n", payloadStr)
+	fmt.Printf("Payload (hex): %x\n", packet.Payload)
+}
+
+func (s *SynthmorphState) InitCSV(path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+
+	s.csvFile = file
+	s.csvReader = csv.NewReader(file)
+
+	// skip header
+	_, err = s.csvReader.Read()
+	return err
+}
+
+/*
 UPDATE THE QUEUE OF TIMINGS AND SIZESs
 */
 func (s *SynthmorphState) UpdateQueue(refresh time.Duration, threshold int, count int) {
@@ -130,43 +165,8 @@ func (s *SynthmorphState) UpdateQueue(refresh time.Duration, threshold int, coun
 }
 
 /*
-LOCAL HELPER FUNCTIONS
-*/
-
-func printRTPPacket(packet *rtp.Packet) {
-	// Print header details.
-	fmt.Printf("RTP Header:\n")
-	fmt.Printf("  Version: %d\n", packet.Version)
-	fmt.Printf("  Padding: %v\n", packet.Padding)
-	fmt.Printf("  Extension: %v\n", packet.Extension)
-	fmt.Printf("  Marker: %v\n", packet.Marker)
-	fmt.Printf("  PayloadType: %d\n", packet.PayloadType)
-	fmt.Printf("  SequenceNumber: %d\n", packet.SequenceNumber)
-	fmt.Printf("  Timestamp: %d\n", packet.Timestamp)
-	fmt.Printf("  SSRC: %d\n", packet.SSRC)
-
-	payloadStr := string(packet.Payload)
-	fmt.Printf("Payload (string): %s\n", payloadStr)
-	fmt.Printf("Payload (hex): %x\n", packet.Payload)
-}
-
-/*
 MAIN SENDER/RECEIVER TOOLS
 */
-
-func (s *SynthmorphState) InitCSV(path string) error {
-	file, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-
-	s.csvFile = file
-	s.csvReader = csv.NewReader(file)
-
-	// skip header
-	_, err = s.csvReader.Read()
-	return err
-}
 
 func (s *SynthmorphState) QueueDeterminedSender(videoTrack *webrtc.TrackLocalStaticRTP) {
 	seq := uint16(0)
