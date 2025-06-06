@@ -103,6 +103,7 @@ func (s *SynthmorphState) UpdateQueue(refresh time.Duration, threshold int, coun
 
 		for s.SizeQueue.Size() < threshold && count > 0 {
 			record, err := s.csvReader.Read()
+			fmt.Printf("Reading CSV row: %v\n", record)
 			if err == io.EOF {
 				fmt.Println("Reached end of CSV")
 				return
@@ -111,10 +112,8 @@ func (s *SynthmorphState) UpdateQueue(refresh time.Duration, threshold int, coun
 				continue
 			}
 
-			// Parse and convert timestamp (s → ms)
-			timestampF, err1 := strconv.ParseFloat(record[0], 64)
-			// Parse and floor size
-			sizeF, err2 := strconv.ParseFloat(record[1], 64)
+			timestampF, err1 := strconv.ParseFloat(record[0], 64) // Parse and convert timestamp (s → ms)
+			sizeF, err2 := strconv.ParseFloat(record[1], 64)      // Parse and floor size
 			if err1 != nil || err2 != nil {
 				fmt.Printf("Parse error on line: %v\n", record)
 				continue
@@ -179,6 +178,11 @@ func (s *SynthmorphState) QueueDeterminedSender(videoTrack *webrtc.TrackLocalSta
 	for {
 		// Dequeue timing value
 		currTiming, _ := s.TimingQueue.Dequeue()
+
+		if currTiming == -1 {
+			fmt.Println("Received stop signal — ending transmission")
+			return
+		}
 
 		// Compute intended inter-packet delay
 		var delayMs int
