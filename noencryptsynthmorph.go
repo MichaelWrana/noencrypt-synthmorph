@@ -177,9 +177,13 @@ func (s *SynthmorphState) QueueDeterminedSender(videoTrack *webrtc.TrackLocalSta
 
 	for {
 		// Dequeue timing value
-		currTiming, err := s.TimingQueue.Dequeue()
-		if err != nil {
-			panic(err)
+		currTiming, _ := s.TimingQueue.Dequeue()
+		// Dequeue size
+		size, _ := s.SizeQueue.Dequeue()
+
+		if currTiming == -1 || size == -1 {
+			fmt.Println("Received stop signal — exiting sender loop")
+			return
 		}
 
 		// Compute intended inter-packet delay
@@ -204,9 +208,6 @@ func (s *SynthmorphState) QueueDeterminedSender(videoTrack *webrtc.TrackLocalSta
 
 		// Update RTP timestamp based on intended delay
 		timestamp += uint32(delayMs * (clockRate / 1000))
-
-		// Dequeue size
-		size, _ := s.SizeQueue.Dequeue()
 
 		// Assemble payload efficiently
 		message := bytes.Repeat([]byte("A"), size)
