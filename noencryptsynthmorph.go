@@ -141,21 +141,23 @@ func (s *SynthmorphState) UpdateQueue(refresh time.Duration, threshold int, coun
 			fmt.Printf("Reading CSV row: %v\n", record)
 			if err == io.EOF {
 				fmt.Println("Reached end of CSV")
+				_ = s.TimingQueue.Enqueue(-1)
+				_ = s.SizeQueue.Enqueue(-1)
 				return
 			} else if err != nil {
 				fmt.Printf("CSV read error: %v\n", err)
 				continue
 			}
 
-			timestampF, err1 := strconv.ParseFloat(record[0], 64) // Parse and convert timestamp (s → ms)
-			sizeF, err2 := strconv.ParseFloat(record[1], 64)      // Parse and floor size
+			timestampF, err1 := strconv.ParseFloat(record[0], 64) // Parse timestamp
+			sizeF, err2 := strconv.ParseFloat(record[1], 64)      // Parse size
 			if err1 != nil || err2 != nil {
 				fmt.Printf("Parse error on line: %v\n", record)
 				continue
 			}
 
-			timestampMS := int(timestampF * 1000)
-			size := int(math.Floor(sizeF))
+			timestampMS := int(timestampF * 1000) // convert timestamp to ms
+			size := int(math.Floor(sizeF))        // floor size
 
 			_ = s.TimingQueue.Enqueue(timestampMS)
 			_ = s.SizeQueue.Enqueue(size)
