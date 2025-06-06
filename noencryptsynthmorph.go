@@ -141,8 +141,6 @@ func (s *SynthmorphState) UpdateQueue(refresh time.Duration, threshold int, coun
 			fmt.Printf("Reading CSV row: %v\n", record)
 			if err == io.EOF {
 				fmt.Println("Reached end of CSV")
-				_ = s.TimingQueue.Enqueue(-1)
-				_ = s.SizeQueue.Enqueue(-1)
 				return
 			} else if err != nil {
 				fmt.Printf("CSV read error: %v\n", err)
@@ -179,11 +177,9 @@ func (s *SynthmorphState) QueueDeterminedSender(videoTrack *webrtc.TrackLocalSta
 
 	for {
 		// Dequeue timing value
-		currTiming, _ := s.TimingQueue.Dequeue()
-
-		if currTiming == -1 {
-			fmt.Println("Received stop signal — ending transmission")
-			return
+		currTiming, err := s.TimingQueue.Dequeue()
+		if err != nil {
+			panic(err)
 		}
 
 		// Compute intended inter-packet delay
