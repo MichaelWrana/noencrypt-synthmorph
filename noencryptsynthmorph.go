@@ -114,11 +114,16 @@ func (s *SynthmorphState) QueueDeterminedSender(videoTrack *webrtc.TrackLocalSta
 		}
 
 		if first {
+			print("STARTING TIME: ")
+			print(startTime)
 			startTime = time.Now()
 			first = false
 		}
 
 		targetSendTime := startTime.Add(time.Duration(currTiming) * time.Millisecond)
+		print("TARGET TIME: ")
+		print(targetSendTime)
+
 		timeUntilSend := time.Until(targetSendTime)
 
 		if timeUntilSend > 0 {
