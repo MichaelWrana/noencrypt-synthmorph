@@ -156,7 +156,7 @@ func (s *SynthmorphState) QueueDeterminedSender(videoTrack *webrtc.TrackLocalSta
 			panic(err)
 		}
 
-		fmt.Printf("Sent packet: seq=%v\n", seq)
+		//fmt.Printf("Sent packet: seq=%v\n", seq)
 		seq++
 	}
 }
