@@ -140,7 +140,7 @@ func (s *SynthmorphState) QueueDeterminedSender(videoTrack *webrtc.TrackLocalSta
 		// Assemble payload efficiently
 		message := bytes.Repeat([]byte("A"), size)
 
-		fmt.Printf("Sending packet: size=%d bytes, delay=%v, ts=%d\n", size, timeUntilSend, timestamp)
+		fmt.Printf("Sending packet: size=%d bytes, delay=%v, ts=%d, seq=%v\n", size, timeUntilSend, timestamp, seq)
 
 		pkt := &rtp.Packet{
 			Header: rtp.Header{
