@@ -79,6 +79,8 @@ func (s *SynthmorphState) LoadCSV(path string) {
 			panic(err)
 		}
 
+		fmt.Println("hello")
+
 		timestampFile, _ := strconv.ParseFloat(record[0], 64)
 		sizeFile, _ := strconv.ParseFloat(record[1], 64)
 
