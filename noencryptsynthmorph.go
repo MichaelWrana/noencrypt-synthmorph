@@ -114,19 +114,19 @@ func (s *SynthmorphState) QueueDeterminedSender(videoTrack *webrtc.TrackLocalSta
 		}
 
 		if first {
-			fmt.Println("STARTING TIME: ")
-			fmt.Println(startTime)
+			//fmt.Println("STARTING TIME: ")
+			//fmt.Println(startTime)
 			startTime = time.Now()
 			first = false
 		}
 
 		targetSendTime := startTime.Add(time.Duration(currTiming) * time.Millisecond)
-		fmt.Println("TARGET TIME: ")
-		fmt.Println(targetSendTime)
+		//fmt.Println("TARGET TIME: ")
+		//fmt.Println(targetSendTime)
 
 		timeUntilSend := time.Until(targetSendTime)
-		fmt.Println("SLEEPING FOR: ")
-		fmt.Println(timeUntilSend)
+		//fmt.Println("SLEEPING FOR: ")
+		//fmt.Println(timeUntilSend)
 
 		if timeUntilSend > 0 {
 			time.Sleep(timeUntilSend)
@@ -138,7 +138,7 @@ func (s *SynthmorphState) QueueDeterminedSender(videoTrack *webrtc.TrackLocalSta
 		// Assemble payload efficiently
 		message := bytes.Repeat([]byte("A"), size)
 
-		fmt.Printf("Sending packet: size=%d bytes, delay=%dms, ts=%d\n", size, timeUntilSend, timestamp)
+		fmt.Printf("Sending packet: size=%d bytes, delay=%v, ts=%d\n", size, timeUntilSend, timestamp)
 
 		pkt := &rtp.Packet{
 			Header: rtp.Header{
