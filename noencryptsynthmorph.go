@@ -125,6 +125,8 @@ func (s *SynthmorphState) QueueDeterminedSender(videoTrack *webrtc.TrackLocalSta
 		fmt.Println(targetSendTime)
 
 		timeUntilSend := time.Until(targetSendTime)
+		fmt.Println("SLEEPING FOR: ")
+		fmt.Println(timeUntilSend)
 
 		if timeUntilSend > 0 {
 			time.Sleep(timeUntilSend)
